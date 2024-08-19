@@ -1,62 +1,84 @@
-const form = document.querySelector("form"),
-fileInput = document.querySelector(".file-input"),
-progressArea = document.querySelector(".progress-area"),
-uploadedArea = document.querySelector(".uploaded-area");
+// script.js
 
-form.addEventListener("click", () =>{
-  fileInput.click();
+document.addEventListener('DOMContentLoaded', () => {
+    const fInput = document.getElementById('fileInput');
+    const pBar = document.getElementById('progressBar');
+    const pText = document.getElementById('progressText');
+    const fName = document.getElementById('fileName');
+    const modal = document.getElementById('myModal');
+    const cModal = document.getElementById('closeModal');
+    const uImage = document.getElementById('uploadedImageModal');
+    const pContainer = document.getElementById('previewContainer');
+    const cBtn = document.getElementById('clearButton');
+    fInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadstart = () => {
+                pBar.style.width = '0%';
+                pText.style.display = 'block';
+                pText.innerText = '0%';
+                pContainer.style.display = 'none';
+                cBtn.style.display = 'none';
+            };
+            reader.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const progress = 
+                        (event.loaded / event.total) * 100;
+                    pBar.style.width = `${progress}%`;
+                    pText.innerText = `${Math.round(progress)}%`;
+                }
+            };
+            reader.onload = () => {
+                const uploadTime = 4000;
+                const interval = 50;
+                const steps = uploadTime / interval;
+                let currentStep = 0;
+                const updateProgress = () => {
+                    const progress = (currentStep / steps) * 100;
+                    pBar.style.width = `${progress}%`;
+                    pText.innerText = `${Math.round(progress)}%`;
+                    currentStep++;
+
+                    if (currentStep <= steps) {
+                        setTimeout(updateProgress, interval);
+                    } else {
+                        pBar.style.width = '100%';
+                        pText.innerText = '100%';
+                        fName.innerText = `File Name: ${file.name}`;
+                        pContainer.innerHTML = 
+                            `<img src="${reader.result}" 
+                                  alt="Preview" id="previewImage">`;
+                        pContainer.style.display = 'block';
+                        cBtn.style.display = 'block';
+                    }
+                };
+                setTimeout(updateProgress, interval);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert('Please select a valid image file.');
+            fInput.value = '';
+        }
+    });
+    pContainer.addEventListener('click', () => {
+        modal.style.display = 'block';
+        uImage.src = document.getElementById('previewImage').src;
+    });
+    cModal.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+    cBtn.addEventListener('click', () => {
+        fInput.value = '';
+        pBar.style.width = '0%';
+        pText.style.display = 'none';
+        fName.innerText = '';
+        pContainer.style.display = 'none';
+        cBtn.style.display = 'none';
+    });
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
 });
-
-fileInput.onchange = ({target})=>{
-  let file = target.files[0];
-  if(file){
-    let fileName = file.name;
-    if(fileName.length >= 12){
-      let splitName = fileName.split('.');
-      fileName = splitName[0].substring(0, 13) + "... ." + splitName[1];
-    }
-    uploadFile(fileName);
-  }
-}
-
-function uploadFile(name){
-  let xhr = new XMLHttpRequest();
-  xhr.open("POST", "php/upload.php");
-  xhr.upload.addEventListener("progress", ({loaded, total}) =>{
-    let fileLoaded = Math.floor((loaded / total) * 100);
-    let fileTotal = Math.floor(total / 1000);
-    let fileSize;
-    (fileTotal < 1024) ? fileSize = fileTotal + " KB" : fileSize = (loaded / (1024*1024)).toFixed(2) + " MB";
-    let progressHTML = `<li class="row">
-                          <i class="fas fa-file-alt"></i>
-                          <div class="content">
-                            <div class="details">
-                              <span class="name">${name} • Uploading</span>
-                              <span class="percent">${fileLoaded}%</span>
-                            </div>
-                            <div class="progress-bar">
-                              <div class="progress" style="width: ${fileLoaded}%"></div>
-                            </div>
-                          </div>
-                        </li>`;
-    uploadedArea.classList.add("onprogress");
-    progressArea.innerHTML = progressHTML;
-    if(loaded == total){
-      progressArea.innerHTML = "";
-      let uploadedHTML = `<li class="row">
-                            <div class="content upload">
-                              <i class="fas fa-file-alt"></i>
-                              <div class="details">
-                                <span class="name">${name} • Uploaded</span>
-                                <span class="size">${fileSize}</span>
-                              </div>
-                            </div>
-                            <i class="fas fa-check"></i>
-                          </li>`;
-      uploadedArea.classList.remove("onprogress");
-      uploadedArea.insertAdjacentHTML("afterbegin", uploadedHTML);
-    }
-  });
-  let data = new FormData(form);
-  xhr.send(data);
-}
